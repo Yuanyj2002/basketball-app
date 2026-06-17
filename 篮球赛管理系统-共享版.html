@@ -418,6 +418,46 @@ table tr:hover td { background: #FFF8F5; }
 @media (max-width: 400px) {
   .nav-tabs button { padding: 8px 10px; font-size: 11px; }
 }
+/* ---- Live Recording ---- */
+#liveModal .modal { max-width: 100% !important; height: 100vh !important; border-radius: 0; max-height: 100vh; padding: 12px; display: flex; flex-direction: column; }
+#liveModal { padding: 0 !important; }
+.live-score { text-align: center; padding: 8px; background: linear-gradient(135deg, var(--secondary), var(--secondary-light)); border-radius: 10px; color: white; margin-bottom: 10px; }
+.live-score .score-num { font-size: 36px; font-weight: 800; }
+.live-score .score-vs { font-size: 18px; padding: 0 16px; opacity: 0.6; }
+.live-score .score-info { font-size: 13px; opacity: 0.8; margin-top: 2px; }
+.live-score .win { color: #76FF03; }
+.live-score .loss { color: #FF5252; }
+.live-players { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 8px; margin: 8px 0; max-height: 40vh; overflow-y: auto; }
+.live-player-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px 4px; border: 2px solid var(--border); border-radius: 10px; background: white; cursor: pointer; transition: all 0.15s; min-height: 64px; }
+.live-player-btn:hover { border-color: var(--primary-light); background: #FFF8F5; }
+.live-player-btn.selected { border-color: var(--primary); background: #FFF0E8; box-shadow: 0 0 0 3px rgba(255,107,53,0.2); }
+.live-player-btn .num { font-size: 18px; font-weight: 800; color: var(--secondary); }
+.live-player-btn .name { font-size: 11px; color: var(--text-light); margin-top: 2px; }
+.live-player-btn .pts-badge { font-size: 10px; background: var(--primary); color: white; border-radius: 8px; padding: 1px 6px; margin-top: 2px; }
+.live-panel { background: #F8F9FA; border-radius: 10px; padding: 10px; margin: 6px 0; }
+.live-panel-title { font-size: 13px; font-weight: 600; color: var(--text-light); margin-bottom: 6px; }
+.live-stat-btns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.live-stat-btns .btn { padding: 10px 6px; font-size: 13px; border-radius: 8px; justify-content: center; }
+.live-stat-other { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-top: 6px; }
+.live-stat-other .btn { padding: 8px 4px; font-size: 12px; border-radius: 8px; justify-content: center; }
+.live-bottom { display: flex; gap: 8px; margin-top: 8px; }
+.live-bottom .btn { flex: 1; justify-content: center; }
+.live-player-summary { font-size: 13px; background: white; border-radius: 8px; padding: 8px 12px; margin: 4px 0; display: flex; justify-content: space-between; align-items: center; }
+.live-player-summary .pts { font-weight: 700; color: var(--primary); font-size: 18px; }
+.live-stat-feedback { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); font-size: 48px; pointer-events: none; animation: fadePop 0.6s forwards; z-index: 9999; }
+@keyframes fadePop { 0% { opacity: 1; transform: translate(-50%,-50%) scale(0.5); } 50% { opacity: 1; transform: translate(-50%,-50%) scale(1.2); } 100% { opacity: 0; transform: translate(-50%,-80%) scale(1); } }
+.live-quarter-bar { display: flex; gap: 4px; justify-content: center; margin: 4px 0; }
+.live-quarter-bar button { padding: 2px 10px; border: 1px solid var(--border); border-radius: 4px; background: white; font-size: 12px; cursor: pointer; }
+.live-quarter-bar button.active { background: var(--secondary); color: white; border-color: var(--secondary); }
+@media (max-width: 480px) {
+  .live-players { grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .live-player-btn { min-height: 56px; padding: 6px 2px; }
+  .live-player-btn .num { font-size: 16px; }
+  .live-score .score-num { font-size: 28px; }
+  .live-stat-btns { grid-template-columns: repeat(3, 1fr); }
+  .live-stat-other { grid-template-columns: repeat(5, 1fr); }
+  .live-stat-other .btn { font-size: 11px; padding: 6px 2px; }
+}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 </head>
@@ -538,11 +578,60 @@ table tr:hover td { background: #FFF8F5; }
     <div class="form-row-3">
       <div class="form-group"><label>我方得分</label><input class="form-control" id="gameOurScore" type="number" min="0" placeholder="0"></div>
       <div class="form-group"><label>对方得分</label><input class="form-control" id="gameOpponentScore" type="number" min="0" placeholder="0"></div>
-      <div class="form-group"><label>状态</label><select class="form-control" id="gameStatus"><option value="scheduled">未开始</option><option value="completed">已结束</option></select></div>
+      <div class="form-group"><label>状态</label><select class="form-control" id="gameStatus"><option value="scheduled">未开始</option><option value="in_progress">🟢 进行中</option><option value="completed">已结束</option></select></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('gameModal')">取消</button>
       <button class="btn btn-primary" onclick="saveGame()">保存</button>
+    </div>
+  </div>
+</div>
+<!-- 实时记录 Modal -->
+<div class="modal-overlay" id="liveModal">
+  <div class="modal" style="max-width:100%;height:100vh;border-radius:0;max-height:100vh;padding:12px;display:flex;flex-direction:column;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
+      <div><strong id="liveTitle" style="font-size:16px;">🏀 实时记录</strong></div>
+      <button class="modal-close" onclick="closeLiveRecording()" style="font-size:20px;width:28px;height:28px;">&times;</button>
+    </div>
+    <!-- Score -->
+    <div class="live-score" id="liveScoreDisplay">
+      <div><span class="score-num win" id="liveOurScore">0</span><span class="score-vs">:</span><span class="score-num" id="liveOppScore">0</span></div>
+      <div class="score-info"><span id="liveOpponent"></span> · 第<span id="liveQuarter">1</span>节</div>
+    </div>
+    <!-- Quarter bar -->
+    <div class="live-quarter-bar" id="liveQuarterBar">
+      <button class="active" data-q="1" onclick="setLiveQuarter(1)">第1节</button>
+      <button data-q="2" onclick="setLiveQuarter(2)">第2节</button>
+      <button data-q="3" onclick="setLiveQuarter(3)">第3节</button>
+      <button data-q="4" onclick="setLiveQuarter(4)">第4节</button>
+    </div>
+    <!-- Players grid -->
+    <div style="font-size:13px;font-weight:600;color:var(--text-light);margin-bottom:4px;">👥 点击球员开始记录</div>
+    <div class="live-players" id="livePlayersGrid"></div>
+    <!-- Stat panel -->
+    <div class="live-panel" id="liveStatPanel" style="display:none;">
+      <div class="live-panel-title" id="liveSelectedLabel">🏀 记录得分</div>
+      <div class="live-stat-btns">
+        <button class="btn btn-primary" onclick="recordLiveStat('two')">🏀 2分</button>
+        <button class="btn btn-warning" onclick="recordLiveStat('three')">🔥 3分</button>
+        <button class="btn btn-success" onclick="recordLiveStat('ft')">🎯 罚球</button>
+      </div>
+      <div class="live-panel-title" style="margin-top:6px;">📊 其他</div>
+      <div class="live-stat-other">
+        <button class="btn btn-outline" onclick="recordLiveStat('reb')">📋板</button>
+        <button class="btn btn-outline" onclick="recordLiveStat('ast')">🤝助</button>
+        <button class="btn btn-outline" onclick="recordLiveStat('stl')">✋断</button>
+        <button class="btn btn-outline" onclick="recordLiveStat('blk')">🛡帽</button>
+        <button class="btn btn-outline" onclick="recordLiveStat('fls')">👊犯</button>
+      </div>
+    </div>
+    <!-- Player summary -->
+    <div id="livePlayerSummary"></div>
+    <!-- Bottom buttons -->
+    <div class="live-bottom">
+      <button class="btn btn-outline" onclick="undoLiveStat()">↩️ 撤销</button>
+      <button class="btn btn-secondary" onclick="closeLiveRecording()">📋 暂存</button>
+      <button class="btn btn-danger" onclick="endLiveGame()">⏹️ 结束比赛</button>
     </div>
   </div>
 </div>
@@ -680,8 +769,10 @@ function renderSchedule(){
     var canRecord = g.status==='completed' && !hasStats;
     var hasData = g.status==='completed' && hasStats;
     var scoreDisplay = g.status==='completed' ? '<span class="game-score" style="font-size:16px;padding:0;"><span class="'+(g.our_score>=g.opponent_score?'win':'loss')+'">'+g.our_score+'</span><span class="vs">:</span><span class="'+(g.opponent_score>=g.our_score?'win':'loss')+'">'+g.opponent_score+'</span></span>' : '-';
-    var statusBadge = g.status==='completed' ? '<span class="badge '+(g.our_score>=g.opponent_score?'badge-win':'badge-loss')+'">'+(g.our_score>=g.opponent_score?'🏆胜':'💔负')+'</span>' : '<span class="badge badge-pending">⏳未开始</span>';
+    var statusBadge = g.status==='completed' ? '<span class="badge '+(g.our_score>=g.opponent_score?'badge-win':'badge-loss')+'">'+(g.our_score>=g.opponent_score?'🏆胜':'💔负')+'</span>' : g.status==='in_progress' ? '<span class="badge badge-pending">🟢进行中</span>' : '<span class="badge badge-pending">⏳未开始</span>';
     var actions = '<button class="btn btn-sm btn-secondary" onclick="editGame('+g.id+')">✏️</button> ';
+    if(g.status==='scheduled') actions += '<button class="btn btn-sm btn-primary" onclick="startGame('+g.id+')">▶️开始</button> ';
+    if(g.status==='in_progress') actions += '<button class="btn btn-sm btn-success" onclick="openLiveRecording('+g.id+')">📱直播</button> ';
     if(canRecord) actions += '<button class="btn btn-sm btn-success" onclick="openRecordModal('+g.id+')">📝记录</button> ';
     if(hasData) actions += '<button class="btn btn-sm btn-outline" onclick="viewGameStats('+g.id+')">📊查看</button> ';
     actions += '<button class="btn btn-sm btn-danger" onclick="deleteGame('+g.id+')">🗑️</button>';
@@ -914,6 +1005,131 @@ function switchTab(name){
   else if(name==='leaderboard') renderLeaderboard('points');
 }
 
+/* ---- Live Recording ---- */
+var liveState = { gameId:null, selectedPlayer:null, statHistory:[] };
+function startGame(gameId){
+  if(!confirm('确认开始这场比赛？')) return;
+  supabase.from('games').update({status:'in_progress'}).eq('id',gameId).then(function(){
+    loadAllData().then(function(){ renderSchedule(); });
+  });
+}
+function openLiveRecording(gameId){
+  liveState.gameId = gameId; liveState.selectedPlayer = null; liveState.statHistory = [];
+  var game = games.find(function(g){ return g.id===gameId; });
+  if(!game){ alert('比赛不存在'); return; }
+  document.getElementById('liveTitle').textContent = '🏀 '+game.opponent;
+  document.getElementById('liveOpponent').textContent = game.opponent;
+  renderLiveView(); showModal('liveModal');
+}
+function closeLiveRecording(){
+  liveState.gameId = null; liveState.selectedPlayer = null;
+  closeModal('liveModal');
+}
+function renderLiveView(){
+  var game = games.find(function(g){ return g.id===liveState.gameId; });
+  if(!game) return;
+  var liveStats = gameStats.filter(function(s){ return s.game_id===liveState.gameId; });
+  var totalPts = liveStats.reduce(function(a,s){ return a+s.points; },0);
+  document.getElementById('liveOurScore').textContent = totalPts;
+  document.getElementById('liveOppScore').textContent = game.opponent_score;
+  document.getElementById('liveOurScore').className = 'score-num '+(totalPts>=game.opponent_score?'win':'loss');
+  // Player grid
+  var grid = document.getElementById('livePlayersGrid');
+  grid.innerHTML = players.map(function(p){
+    var st = liveStats.find(function(s){ return s.player_id===p.id; });
+    var pts = st?st.points:0; var sel = liveState.selectedPlayer===p.id?' selected':'';
+    return '<div class="live-player-btn'+sel+'" onclick="selectLivePlayer('+p.id+')"><div class="num">'+p.number+'</div><div class="name">'+p.name+'</div>'+(pts?'<div class="pts-badge">'+pts+'分</div>':'')+'</div>';
+  }).join('');
+  // Stat panel
+  if(liveState.selectedPlayer){
+    var sp = players.find(function(p){ return p.id===liveState.selectedPlayer; });
+    document.getElementById('liveStatPanel').style.display = 'block';
+    document.getElementById('liveSelectedLabel').textContent = '🏀 '+(sp?'#'+sp.number+' '+sp.name:'')+' - 记录数据';
+  } else {
+    document.getElementById('liveStatPanel').style.display = 'none';
+  }
+  // Summary
+  var selectedStats = liveStats.filter(function(s){ return s.player_id===liveState.selectedPlayer; });
+  var summary = document.getElementById('livePlayerSummary');
+  if(selectedStats.length && liveState.selectedPlayer){
+    var ss = selectedStats[0];
+    var sp2 = players.find(function(p){ return p.id===liveState.selectedPlayer; });
+    summary.innerHTML = '<div class="live-player-summary"><span>'+(sp2?'#'+sp2.number+' '+sp2.name:'')+' 数据</span><span class="pts">'+ss.points+'分</span></div><div style="font-size:12px;color:var(--text-light);">两分:'+ss.two_made+'/'+ss.two_attempted+' 三分:'+ss.three_made+'/'+ss.three_attempted+' 罚球:'+ss.ft_made+'/'+ss.ft_attempted+' 板:'+ss.rebounds+' 助:'+ss.assists+' 断:'+ss.steals+' 帽:'+ss.blocks+' 误:'+ss.turnovers+' 犯:'+ss.fouls+'</div>';
+  } else { summary.innerHTML = liveState.selectedPlayer?'<div class="live-player-summary"><span>暂无数据</span></div>':''; }
+}
+function selectLivePlayer(pid){
+  liveState.selectedPlayer = liveState.selectedPlayer===pid ? null : pid;
+  renderLiveView();
+}
+function recordLiveStat(type){
+  if(!liveState.selectedPlayer || !liveState.gameId) return;
+  var pid = liveState.selectedPlayer;
+  var existing = gameStats.filter(function(s){ return s.game_id===liveState.gameId && s.player_id===pid; });
+  var stat = existing.length ? Object.assign({}, existing[0]) : {
+    game_id:liveState.gameId, player_id:pid, points:0, two_made:0, two_attempted:0,
+    three_made:0, three_attempted:0, ft_made:0, ft_attempted:0,
+    rebounds:0, assists:0, steals:0, blocks:0, turnovers:0, fouls:0, minutes:0
+  };
+  // Save a copy for undo
+  liveState.statHistory.push(JSON.parse(JSON.stringify(stat)));
+  // Apply stat
+  if(type==='two'){ stat.two_made++; stat.two_attempted++; stat.points+=2; }
+  else if(type==='three'){ stat.three_made++; stat.three_attempted++; stat.points+=3; }
+  else if(type==='ft'){ stat.ft_made++; stat.ft_attempted++; stat.points++; }
+  else if(type==='reb'){ stat.rebounds++; }
+  else if(type==='ast'){ stat.assists++; }
+  else if(type==='stl'){ stat.steals++; }
+  else if(type==='blk'){ stat.blocks++; }
+  else if(type==='fls'){ stat.fouls++; }
+  // Save to Supabase
+  var q = supabase.from('game_stats');
+  if(existing.length){ q = q.update(stat).eq('id', existing[0].id); }
+  else { q = q.insert(stat); }
+  q.then(function(){
+    loadAllData().then(function(){ renderLiveView(); });
+  }).catch(function(e){ alert('保存失败'); });
+  // Show feedback
+  var feedback = document.createElement('div');
+  feedback.className = 'live-stat-feedback';
+  feedback.textContent = type==='two'?'🏀2分':type==='three'?'🔥3分':type==='ft'?'🎯罚球':type==='reb'?'📋板':type==='ast'?'🤝助':type==='stl'?'✋断':type==='blk'?'🛡帽':'👊犯';
+  document.body.appendChild(feedback);
+  setTimeout(function(){ if(feedback.parentNode) feedback.parentNode.removeChild(feedback); }, 600);
+}
+function setLiveQuarter(q){
+  document.querySelectorAll('#liveQuarterBar button').forEach(function(b){ b.classList.toggle('active',parseInt(b.dataset.q)===q); });
+  document.getElementById('liveQuarter').textContent = q;
+}
+function undoLiveStat(){
+  if(!liveState.statHistory.length){ alert('没有可以撤销的操作'); return; }
+  var prev = liveState.statHistory.pop();
+  var pid = prev.player_id;
+  var existing = gameStats.filter(function(s){ return s.game_id===liveState.gameId && s.player_id===pid; });
+  if(existing.length){
+    if(prev.id && prev.id===existing[0].id){
+      supabase.from('game_stats').update(prev).eq('id', prev.id).then(function(){
+        loadAllData().then(function(){ renderLiveView(); });
+      });
+    } else {
+      supabase.from('game_stats').insert(prev).then(function(){
+        loadAllData().then(function(){ renderLiveView(); });
+      });
+    }
+  }
+}
+function endLiveGame(){
+  if(!confirm('确定结束比赛吗？\n\n结束后将无法在直播模式中修改数据，但可以在赛程中手动编辑。')) return;
+  var game = games.find(function(g){ return g.id===liveState.gameId; });
+  if(!game) return;
+  var liveStats = gameStats.filter(function(s){ return s.game_id===liveState.gameId; });
+  var totalPts = liveStats.reduce(function(a,s){ return a+s.points; },0);
+  supabase.from('games').update({status:'completed', our_score:totalPts}).eq('id', liveState.gameId).then(function(){
+    loadAllData().then(function(){
+      closeLiveRecording();
+      renderSchedule();
+      alert('比赛已结束！最终比分 '+totalPts+' : '+game.opponent_score);
+    });
+  });
+}
 async function init() {
   await loadAllData();
   renderPlayers(); renderSchedule(); renderStats(); renderLeaderboard('points');
