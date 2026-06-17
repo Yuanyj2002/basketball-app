@@ -1,6 +1,6 @@
 {
-  "name": "大新小学班级篮球联赛管理系统",
-  "short_name": "大新篮球联赛",
+  "name": "大新小学班级联赛管理系统",
+  "short_name": "大新班级联赛",
   "description": "大新小学班级篮球联赛数据管理系统 — 记录球员信息、比赛赛程、技术统计与排行榜",
   "start_url": "篮球赛管理系统-共享版.html",
   "display": "standalone",
