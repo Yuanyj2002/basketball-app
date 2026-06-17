@@ -697,9 +697,11 @@ var supabaseUrl = 'https://yikgcirxzjzkynovbspo.supabase.co';
 var supabaseKey = 'sb_publishable_wdc6tzP-l8M0qmPQFGfIqw_PAYcC_9p';
 async function sbFetch(method, url, body) {
   try {
-    var res = await fetch(supabaseUrl + '/rest/v1/' + url, {
+    var sep = url.indexOf('?')>=0?'&':'?';
+    var fullUrl = supabaseUrl + '/rest/v1/' + url + sep + 'apikey=' + encodeURIComponent(supabaseKey);
+    var res = await fetch(fullUrl, {
       method: method,
-      headers: { 'apikey': supabaseKey, 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+      headers: { 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
       body: body ? JSON.stringify(body) : null
     });
     if (!res.ok) { var t = await res.text(); try{return {data:null,error:JSON.parse(t)}}catch(e){} return {data:null,error:{message:t}}; }
@@ -735,7 +737,7 @@ function updateCloudStatus(text, color) {
 
 async function loadAllData() {
   try {
-    var [p, g, s] = await Promise.all([
+    var [p, g, s, t] = await Promise.all([
       supabase.from('players').select('*').order('id'),
       supabase.from('games').select('*').order('id'),
       supabase.from('game_stats').select('*').order('id'),
@@ -744,7 +746,7 @@ async function loadAllData() {
     players = p.data || []; games = g.data || []; gameStats = s.data || []; teams = t.data || [];
     updateCloudStatus('☁️ 已连接', 'rgba(76,175,80,0.3)');
   } catch(e) {
-    updateCloudStatus('☁️ 连接失败', 'rgba(244,67,54,0.3)');
+    updateCloudStatus('☁️ '+((e&&e.message)?e.message:'连接失败'), 'rgba(244,67,54,0.3)');
     console.error(e);
   }
 }
