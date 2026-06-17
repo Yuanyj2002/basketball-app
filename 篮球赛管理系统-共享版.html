@@ -465,6 +465,7 @@ table tr:last-child td { border-bottom: none; }
 </header>
 <nav class="nav-tabs" id="navTabs">
   <button class="active" data-tab="players">👥 球员管理</button>
+  <button data-tab="teams">🏆 队伍管理</button>
   <button data-tab="schedule">📅 比赛赛程</button>
   <button data-tab="records">📊 比赛记录</button>
   <button data-tab="stats">📈 数据统计</button>
@@ -472,6 +473,21 @@ table tr:last-child td { border-bottom: none; }
 </nav>
 <div class="main-container">
 <!-- 球员管理 Tab -->
+<div class="tab-content active" id="tab-teams">
+  <div class="card">
+    <div class="card-header">
+      <h2>🏆 队伍管理</h2>
+      <button class="btn btn-primary" onclick="showTeamModal(null)">+ 添加队伍</button>
+    </div>
+    <div class="scroll-x">
+      <table>
+        <thead><tr><th>队伍名称</th><th>年级</th><th>球员数</th><th>操作</th></tr></thead>
+        <tbody id="teamTableBody"><tr><td colspan="4"><div class="empty-state"><div class="icon">🏆</div><p>还没有队伍，点击右上角添加吧！</p></div></td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
 <div class="tab-content active" id="tab-players">
   <div class="card">
     <div class="card-header">
@@ -529,7 +545,8 @@ table tr:last-child td { border-bottom: none; }
   <div class="card">
     <div class="card-header"><h2>🏆 运动员数据排行榜</h2></div>
     <div class="leaderboard-tabs" id="leaderboardTabs">
-      <button class="active" data-cat="points">🏀 得分</button>
+      <button class="active" data-cat="teams">🏆 球队排行</button>
+      <button data-cat="points">🏀 得分</button>
       <button data-cat="rebounds">📋 篮板</button>
       <button data-cat="assists">🤝 助攻</button>
       <button data-cat="steals">✋ 抢断</button>
@@ -552,12 +569,33 @@ table tr:last-child td { border-bottom: none; }
     </div>
     <div class="form-row">
       <div class="form-group"><label>位置</label><select class="form-control" id="playerPosition"><option value="后卫">后卫</option><option value="前锋">前锋</option><option value="中锋">中锋</option></select></div>
-      <div class="form-group"><label>队伍/班级</label><input class="form-control" id="playerTeam" placeholder="如：五年级一班"></div>
+      <div class="form-group"><label>队伍/班级</label><select class="form-control" id="playerTeam"><option value="">请选择队伍</option></select></div>
     </div>
     <div class="form-group"><label>年级</label><input class="form-control" id="playerGrade" placeholder="如：五年级"></div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('playerModal')">取消</button>
       <button class="btn btn-primary" onclick="savePlayer()">保存</button>
+    </div>
+  </div>
+</div>
+<!-- 队伍 Modal -->
+<div class="modal-overlay" id="teamModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="teamModalTitle">添加队伍</h3>
+      <button class="modal-close" onclick="closeModal('teamModal')">&times;</button>
+    </div>
+    <div class="form-group">
+      <label>队伍名称 <span class="required">*</span></label>
+      <input class="form-control" id="teamName" placeholder="如：五年级一班">
+    </div>
+    <div class="form-group">
+      <label>年级</label>
+      <input class="form-control" id="teamGrade" placeholder="如：五年级">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('teamModal')">取消</button>
+      <button class="btn btn-primary" onclick="saveTeam()">保存</button>
     </div>
   </div>
 </div>
@@ -662,9 +700,11 @@ var supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 var players = [];
 var games = [];
 var gameStats = [];
+var teams = [];
 var editingPlayerId = null;
 var editingGameId = null;
 var recordingGameId = null;
+var editingTeamId = null;
 
 function updateCloudStatus(text, color) {
   var el = document.getElementById('cloudStatus');
@@ -676,9 +716,10 @@ async function loadAllData() {
     var [p, g, s] = await Promise.all([
       supabase.from('players').select('*').order('id'),
       supabase.from('games').select('*').order('id'),
-      supabase.from('game_stats').select('*').order('id')
+      supabase.from('game_stats').select('*').order('id'),
+      supabase.from('teams').select('*').order('id')
     ]);
-    players = p.data || []; games = g.data || []; gameStats = s.data || [];
+    players = p.data || []; games = g.data || []; gameStats = s.data || []; teams = t.data || [];
     updateCloudStatus('☁️ 已连接', 'rgba(76,175,80,0.3)');
   } catch(e) {
     updateCloudStatus('☁️ 连接失败', 'rgba(244,67,54,0.3)');
@@ -696,6 +737,7 @@ document.querySelectorAll('.nav-tabs button').forEach(function(btn){
     if(tab==='records') renderRecords();
     else if(tab==='stats') renderStats();
     else if(tab==='leaderboard') renderLeaderboard('points');
+    else if(tab==='teams') renderTeams();
   });
 });
 
@@ -708,6 +750,40 @@ document.addEventListener('keydown', function(e){
   if(e.key==='Escape') document.querySelectorAll('.modal-overlay.active').forEach(function(m){ m.classList.remove('active'); });
 });
 
+function renderTeams(){
+  var tbody = document.getElementById('teamTableBody');
+  if(!teams.length){
+    tbody.innerHTML = '<tr><td colspan="4"><div class="empty-state"><div class="icon">🏆</div><p>还没有队伍，点击右上角添加吧！</p></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = teams.map(function(t){
+    var cnt = players.filter(function(p){ return p.team===t.name; }).length;
+    return '<tr><td><strong>'+t.name+'</strong></td><td>'+(t.grade||'-')+'</td><td>'+cnt+'人</td><td><button class="btn btn-sm btn-secondary" onclick="editTeam('+t.id+')">✏️编辑</button> <button class="btn btn-sm btn-danger" onclick="deleteTeam('+t.id+')">🗑️删除</button></td></tr>';
+  }).join('');
+}
+function showTeamModal(data){
+  editingTeamId = data?data.id:null;
+  document.getElementById('teamModalTitle').textContent = data?'编辑队伍':'添加队伍';
+  document.getElementById('teamName').value = data?data.name:'';
+  document.getElementById('teamGrade').value = data?(data.grade||''):'';
+  showModal('teamModal');
+}
+function editTeam(id){ var t = teams.find(function(x){ return x.id===id; }); if(t) showTeamModal(t); }
+async function saveTeam(){
+  var name = document.getElementById('teamName').value.trim();
+  if(!name){ alert('请输入队伍名称'); return; }
+  var data = {name:name, grade:document.getElementById('teamGrade').value.trim()};
+  try {
+    if(editingTeamId){ await supabase.from('teams').update(data).eq('id', editingTeamId); }
+    else { await supabase.from('teams').insert(data); }
+    await loadAllData(); closeModal('teamModal'); renderTeams();
+  } catch(e) { alert('保存失败：'+e.message); }
+}
+async function deleteTeam(id){
+  if(!confirm('确定要删除该队伍吗？（不会删除球员）')) return;
+  try { await supabase.from('teams').delete().eq('id', id); await loadAllData(); renderTeams(); }
+  catch(e) { alert('删除失败：'+e.message); }
+}
 function renderPlayers(){
   var tbody = document.getElementById('playerTableBody');
   if(!players.length){
@@ -724,7 +800,9 @@ function showPlayerModal(data){
   document.getElementById('playerName').value = data?data.name:'';
   document.getElementById('playerNumber').value = data?data.number:'';
   document.getElementById('playerPosition').value = data?data.position:'后卫';
-  document.getElementById('playerTeam').value = data?(data.team||''):'';
+  var sel = document.getElementById('playerTeam');
+  sel.innerHTML = '<option value="">请选择队伍</option>'+teams.map(function(t){return '<option value="'+t.name+'">'+t.name+'</option>';}).join('');
+  if(data && data.team) sel.value = data.team;
   document.getElementById('playerGrade').value = data?(data.grade||''):'';
   showModal('playerModal');
 }
@@ -969,7 +1047,7 @@ var leaderboardCategory = 'points';
 function renderLeaderboard(cat){
   if(cat) leaderboardCategory = cat;
   document.querySelectorAll('#leaderboardTabs button').forEach(function(b){ b.classList.toggle('active',b.dataset.cat===leaderboardCategory); });
-  var labels = {points:{icon:'🏀',name:'得分',field:'points'},rebounds:{icon:'📋',name:'篮板',field:'rebounds'},assists:{icon:'🤝',name:'助攻',field:'assists'},steals:{icon:'✋',name:'抢断',field:'steals'},blocks:{icon:'🛡️',name:'盖帽',field:'blocks'}};
+  var labels = {teams:{icon:'🏆',name:'球队排行',field:''},points:{icon:'🏀',name:'得分',field:'points'},rebounds:{icon:'📋',name:'篮板',field:'rebounds'},assists:{icon:'🤝',name:'助攻',field:'assists'},steals:{icon:'✋',name:'抢断',field:'steals'},blocks:{icon:'🛡️',name:'盖帽',field:'blocks'}};
   var catInfo = labels[leaderboardCategory];
   var container = document.getElementById('leaderboardContent');
   var rankings = players.map(function(p){
@@ -978,6 +1056,30 @@ function renderLeaderboard(cat){
     var total = st.reduce(function(a,s){ return a+s[catInfo.field]; },0);
     return {player:p, total:total, avg:total/st.length, games:st.length};
   }).filter(Boolean).sort(function(a,b){ return b.total-a.total; });
+  if(catInfo.field===''){
+    // Team standings
+    var teamStats = {};
+    games.filter(function(g){ return g.status==='completed'; }).forEach(function(g){
+      if(!teamStats[g.opponent]) teamStats[g.opponent] = {wins:0,losses:0,games:0,ptsFor:0,ptsAgainst:0};
+      teamStats[g.opponent].games++;
+      teamStats[g.opponent].ptsFor += g.our_score;
+      teamStats[g.opponent].ptsAgainst += g.opponent_score;
+      if(g.our_score>=g.opponent_score) teamStats[g.opponent].wins++; else teamStats[g.opponent].losses++;
+    });
+    var sorted = Object.keys(teamStats).sort(function(a,b){
+      var wd = teamStats[b].wins - teamStats[a].wins;
+      if(wd!==0) return wd;
+      return (teamStats[b].ptsFor-teamStats[b].ptsAgainst)-(teamStats[a].ptsFor-teamStats[a].ptsAgainst);
+    });
+    if(!sorted.length){ container.innerHTML = '<div class="empty-state"><div class="icon">🏆</div><p>暂无比赛数据</p></div>'; return; }
+    var medals = ['🥇','🥈','🥉'];
+    container.innerHTML = '<div style="margin-bottom:12px;font-size:15px;font-weight:700;color:var(--secondary);">📊 联赛排名</div>' + sorted.map(function(name,i){
+      var s = teamStats[name]; var pct = s.games?(s.wins/s.games*100).toFixed(1)+'%':'-';
+      var rankClass = i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':'rank-other';
+      return '<div class="leaderboard-card"><div class="leaderboard-rank '+rankClass+'">'+(i<3?medals[i]:(i+1))+'</div><div class="leaderboard-info"><div class="leaderboard-name"><strong>'+name+'</strong></div><div class="leaderboard-detail">'+s.games+'场 '+s.wins+'胜 '+s.losses+'负 · 胜率'+pct+' · 得分'+s.ptsFor+' 失分'+s.ptsAgainst+'</div></div><div class="leaderboard-value" style="font-size:16px;color:var(--success);">'+s.wins+'胜</div></div>';
+    }).join('');
+    return;
+  }
   if(!rankings.length){ container.innerHTML = '<div class="empty-state"><div class="icon">🏆</div><p>暂无数据，完成比赛并记录数据后排行榜将自动生成！</p></div>'; return; }
   var medals = ['🥇','🥈','🥉'];
   container.innerHTML = rankings.map(function(r,i){
