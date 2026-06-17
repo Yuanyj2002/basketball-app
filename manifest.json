@@ -1,0 +1,20 @@
+{
+  "name": "班级篮球赛管理系统",
+  "short_name": "篮球赛管理",
+  "description": "小学生班级篮球比赛数据管理系统 — 记录球员信息、比赛赛程、技术统计与排行榜",
+  "start_url": "篮球赛管理系统.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1A237E",
+  "theme_color": "#FF6B35",
+  "scope": ".",
+  "categories": ["education", "sports"],
+  "icons": [
+    {
+      "src": "basketball-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
