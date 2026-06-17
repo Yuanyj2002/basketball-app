@@ -457,7 +457,7 @@ table tr:last-child td { border-bottom: none; }
   .nav-tabs button { padding: 8px 8px; font-size: 11px; }
   .live-players { grid-template-columns: repeat(3, 1fr); }
 }</style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+
 </head>
 <body>
 <header class="app-header">
@@ -695,7 +695,29 @@ table tr:last-child td { border-bottom: none; }
 <script>
 var supabaseUrl = 'https://yikgcirxzjzkynovbspo.supabase.co';
 var supabaseKey = 'sb_publishable_wdc6tzP-l8M0qmPQFGfIqw_PAYcC_9p';
-var supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+async function sbFetch(method, url, body) {
+  try {
+    var res = await fetch(supabaseUrl + '/rest/v1/' + url, {
+      method: method,
+      headers: { 'apikey': supabaseKey, 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+      body: body ? JSON.stringify(body) : null
+    });
+    if (!res.ok) { var t = await res.text(); try{return {data:null,error:JSON.parse(t)}}catch(e){} return {data:null,error:{message:t}}; }
+    var text = await res.text();
+    return {data: text ? JSON.parse(text) : [], error: null};
+  } catch(e) { return {data: null, error: e}; }
+}
+var supabase = {
+  from: function(t){
+    return {
+      select: function(){ return { order: function(c){ return sbFetch('GET',t+'?select=*&order='+c); } }; },
+      insert: function(d){ return sbFetch('POST',t,d); },
+      update: function(d){ return { eq: function(c,v){ return sbFetch('PATCH',t+'?'+c+'=eq.'+encodeURIComponent(v),d); } }; },
+      upsert: function(d){ return sbFetch('POST',t+'?on_conflict=id',d); },
+      delete: function(){ return { eq: function(c,v){ return sbFetch('DELETE',t+'?'+c+'=eq.'+encodeURIComponent(v)); } }; }
+    };
+  }
+};
 
 var players = [];
 var games = [];
